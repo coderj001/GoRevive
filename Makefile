@@ -14,11 +14,10 @@ IMAGE_NAME := "coderj001/GoRevive"
 default: test
 
 help:
-	@echo 'Management commands for GoRevive:'
+	@echo 'Management commands for gorevive:'
 	@echo
 	@echo 'Usage:'
 	@echo '    make build           Compile the project.'
-	@echo '    make get-deps        runs dep ensure, mostly used for ci.'
 	@echo '    make build-alpine    Compile optimized for alpine linux.'
 	@echo '    make package         Build final docker image with just the go binary inside'
 	@echo '    make tag             Tag image created by package with latest, git commit and version'
@@ -32,8 +31,6 @@ build:
 	@echo "GOPATH=${GOPATH}"
 	go build -ldflags "-X github.com/coderj001/GoRevive/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/coderj001/GoRevive/version.BuildDate=${BUILD_DATE}" -o bin/${BIN_NAME}
 
-get-deps:
-	dep ensure
 
 build-alpine:
 	@echo "building ${BIN_NAME} ${VERSION}"
