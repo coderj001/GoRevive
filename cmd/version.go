@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/coderj001/GoRevive/version"
 	"github.com/spf13/cobra"
 )
@@ -9,8 +10,8 @@ import (
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number of generated code example",
-	Long:  `All software has versions. This is generated code example`,
+	Short: "Print the version number of gorevive cli",
+	Long:  `All software has versions. Gorevive code versions`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Build Date:", version.BuildDate)
 		fmt.Println("Git Commit:", version.GitCommit)
