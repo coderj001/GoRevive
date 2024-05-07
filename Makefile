@@ -9,7 +9,7 @@ VERSION := $(shell grep "const Version " version/version.go | sed -E 's/.*"(.+)"
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 BUILD_DATE=$(shell date '+%Y-%m-%d-%H:%M:%S')
-IMAGE_NAME := "coderj001/GoRevive"
+IMAGE_NAME := "coderj001/gorevive"
 
 default: test
 

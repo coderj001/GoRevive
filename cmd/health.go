@@ -23,15 +23,15 @@ var healthCmd = &cobra.Command{
 
 		editor := os.Getenv("EDITOR")
 		if editor != "" {
-			fmt.Printf("$EDITOR is set: yes\n")
+			fmt.Printf("$EDITOR is set: Yes\n")
 		} else {
-			fmt.Println("$EDITOR is set: no")
+			fmt.Printf("$EDITOR is set: No\n")
 		}
 		shell := os.Getenv("SHELL")
 		if shell != "" {
-			fmt.Printf("$SHELL is set: yes\n")
+			fmt.Printf("$SHELL is set: Yes\n")
 		} else {
-			fmt.Println("$SHELL is set: no")
+			fmt.Printf("$SHELL is set: No\n")
 
 		}
 	},

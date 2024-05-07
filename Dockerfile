@@ -1,5 +1,5 @@
 # Build Stage
-FROM coderj001/gorevive:1.13 AS build-stage
+FROM golang:1.21 AS build-stage
 
 LABEL app="build-GoRevive"
 LABEL REPO="https://github.com/coderj001/GoRevive"
@@ -15,7 +15,8 @@ WORKDIR /go/src/github.com/coderj001/GoRevive
 RUN make build-alpine
 
 # Final Stage
-FROM coderj001/gorevive
+# FROM alpine
+FROM ubuntu
 
 ARG GIT_COMMIT
 ARG VERSION
@@ -28,13 +29,25 @@ ENV PATH=$PATH:/opt/GoRevive/bin
 
 WORKDIR /opt/GoRevive/bin
 
-COPY --from=build-stage /go/src/github.com/coderj001/GoRevive/bin/GoRevive /opt/GoRevive/bin/
-RUN chmod +x /opt/GoRevive/bin/GoRevive
+COPY --from=build-stage /go/src/github.com/coderj001/GoRevive/bin/gorevive /opt/GoRevive/bin/
+RUN chmod +x /opt/GoRevive/bin/gorevive
+
+# install dumb-init
+# RUN apk add --no-cache dumb-init
+
+RUN apt-get update && apt-get upgrade
+RUN apt-get install -y tmux vim
+
+ENV export EDITOR=vim
+ENV export EDITOR=bash
 
 # Create appuser
-RUN adduser -D -g '' GoRevive
-USER GoRevive
+# RUN adduser -D -g '' GoRevive
+# USER GoRevive
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-CMD ["/opt/GoRevive/bin/GoRevive"]
+
+# ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# CMD ["/opt/GoRevive/bin/gorevive"]
+CMD ["/bin/bash"]
