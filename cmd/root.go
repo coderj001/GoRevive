@@ -11,14 +11,8 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gorevive code example",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to gorevive the needed files
-to quickly create a Cobra application.`,
+	Use:   "gorevive",
+	Short: "Automate tmux sessions configuration",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//      Run: func(cmd *cobra.Command, args []string) { },

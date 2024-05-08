@@ -49,7 +49,6 @@ func readViperConfig(appName string) *viper.Viper {
 	v.AutomaticEnv()
 
 	// global defaults
-	
 
 	return v
 }
