@@ -2,37 +2,72 @@ package helpers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// Get Current Configuration Dir
-func getCurrentConfigDir() string {
-	user, err := os.Current()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(user.HomeDir, ".config", "gorevive")
-}
-
-// check or create for given path
+// CheckOrCreateDir checks if a directory exists at the given path, creates it if it doesn't exist, and returns true if it exists or is created successfully.
 func CheckOrCreateDir(path string) (bool, error) {
-	if _, err := os.Stat(path); os.IsNotExist(path) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return false, fmt.Errorf("failed to create directory: %w", err)
 		}
-	} else {
 		return true, nil
 	}
+	return true, nil
 }
 
 // GetFile returns the path to an existing file with given filename
-func GetFile(filename string) (string, error) {}
+// func GetFile(fileName string) (string, error){ }
 
 // CreateFile returns the path to an file after creating the file
-func CreateFile(filename string) (string, error) {}
+func CreateFile(filename string) error {
+	file, err := os.Create(fmt.Sprintf("%w.yaml", filename))
+	if err != nil {
+		return fmt.Errorf("failed to create file %w", err)
+	}
+	defer file.Close()
+	return nil
+}
 
-// Get all config files list
+// GetConfigFiles fetch all config files list
 func GetConfigFiles() ([]string, error) {
+	configDirPath := getCurrentConfigDir()
+	ok, err := CheckOrCreateDir(configDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config dir %w", err)
+	}
+	if ok {
+		files, err := ioutil.ReadDir(configDirPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch files %w", err)
+		}
+		var configFiles []string
+		for _, file := range files {
+			fileName := extractFileName(file.Name())
+			if fileName != nil {
+				configFiles = append(configFiles, *fileName)
+			}
+		}
+		return configFiles, nil
+	}
+	return nil, fmt.Errorf("No Files Found.")
+}
 
+func getCurrentConfigDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(homeDir, ".config", "gorevive")
+}
+
+func extractFileName(fileName string) *string {
+	parts := strings.Split(fileName, ".")
+	if len(parts) >= 2 {
+		return &parts[0]
+	}
+	return nil
 }
