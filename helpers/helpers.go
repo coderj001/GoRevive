@@ -1,9 +1,11 @@
 package helpers
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -32,8 +34,16 @@ func CreateFile(filename string) error {
 	return nil
 }
 
+// DeleteFile
+func DeleteFile(filename string) error {
+	path := filepath.Join(getCurrentConfigDir(), filename)
+	err := os.Remove(path)
+	return fmt.Errorf("Unable to create, %w", err)
+}
+
 // GetConfigFiles fetch all config files list
 func GetConfigFiles() ([]string, error) {
+	// TODO: sort out base of filters
 	configDirPath := getCurrentConfigDir()
 	ok, err := CheckOrCreateDir(configDirPath)
 	if err != nil {
@@ -54,6 +64,18 @@ func GetConfigFiles() ([]string, error) {
 		return configFiles, nil
 	}
 	return nil, fmt.Errorf("No Files Found.")
+}
+
+// RunCommand executes a shell command and returns its output or an error.
+func RunCommand(name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	var out bytes.Buffer
+
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+	return out.String(), err
 }
 
 func getCurrentConfigDir() string {
