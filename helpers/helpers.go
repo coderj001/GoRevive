@@ -11,23 +11,16 @@ import (
 	"strings"
 )
 
-// CheckOrCreateDir checks if a directory exists at the given path, creates it if it doesn't exist, and returns true if it exists or is created successfully.
-func CheckOrCreateDir(path string) (bool, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0755); err != nil {
-			return false, fmt.Errorf("failed to create directory: %w", err)
-		}
-		return true, nil
-	}
-	return true, nil
-}
-
-// GetFile returns the path to an existing file with given filename
-// func GetFile(fileName string) (string, error){ }
-
 // CreateFile returns the path to an file after creating the file
 func CreateFile(filename string) error {
-	file, err := os.Create(fmt.Sprintf("%w.yaml", filename))
+	filePath := filepath.Join(getCurrentConfigDir(),
+		fmt.Sprintf("%s.yaml", filename))
+
+	if _, err := os.Stat(filePath); os.IsExist(err) {
+		return fmt.Errorf("file %s already exist", filePath)
+	}
+
+	file, err := os.Create(fmt.Sprintf("%s.yaml", filePath))
 	if err != nil {
 		return fmt.Errorf("failed to create file %w", err)
 	}
@@ -65,6 +58,8 @@ func EditFile(filename string) error {
 	}
 
 	cmd := exec.Command(editor, path)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 
 	if err != nil {
@@ -77,7 +72,7 @@ func EditFile(filename string) error {
 func GetConfigFiles() ([]string, error) {
 	// TODO: sort out base of filters
 	configDirPath := getCurrentConfigDir()
-	ok, err := CheckOrCreateDir(configDirPath)
+	ok, err := checkOrCreatePath(configDirPath, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config dir %w", err)
 	}
@@ -113,6 +108,32 @@ func RunCommand(name string, args ...string) (string, error) {
 	output := outBuf.String() + errBuf.String()
 
 	return output, err
+}
+
+// checkOrCreatePath checks if a path exists. If it doesn't, it creates the path as a directory or file based on the provided isDir flag.
+func checkOrCreatePath(path string, isDir bool) (bool, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if isDir {
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return false, fmt.Errorf("failed to create directory: %w", err)
+			}
+		} else {
+			dir := filepath.Dir(path)
+			if _, err := os.Stat(dir); os.IsNotExist(err) {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					return false, fmt.Errorf("failed to create directory: %w", err)
+				}
+			}
+
+			file, err := os.Create(path)
+			if err != nil {
+				return false, fmt.Errorf("failed to create file: %w", err)
+			}
+			defer file.Close()
+		}
+		return true, nil
+	}
+	return true, nil
 }
 
 func getCurrentConfigDir() string {

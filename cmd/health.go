@@ -11,7 +11,7 @@ import (
 // healthCmd represents the health command
 var healthCmd = &cobra.Command{
 	Use:   "health",
-	Short: "Show health check for the gorevive command.",
+	Short: "Show health check for the gorevive command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		healthCheck()
