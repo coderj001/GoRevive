@@ -1,3 +1,4 @@
+// helpers
 package helpers
 
 import (
@@ -34,11 +35,42 @@ func CreateFile(filename string) error {
 	return nil
 }
 
-// DeleteFile
+// DeleteFile deletes the specified configuration file.
 func DeleteFile(filename string) error {
-	path := filepath.Join(getCurrentConfigDir(), filename)
-	err := os.Remove(path)
-	return fmt.Errorf("Unable to create, %w", err)
+	path := filepath.Join(getCurrentConfigDir(),
+		fmt.Sprintf("%s.yaml", filename))
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("file %s does not exist", path)
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("unable to delete file %s: %w", path, err)
+	}
+	return nil
+}
+
+// EditFile edit the specified configuration file.
+func EditFile(filename string) error {
+	path := filepath.Join(getCurrentConfigDir(),
+		fmt.Sprintf("%s.yaml", filename))
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("file %s does not exist", path)
+	}
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+
+	cmd := exec.Command(editor, path)
+	err := cmd.Run()
+
+	if err != nil {
+		return fmt.Errorf("unable to edit file %s: %w", path, err)
+	}
+	return nil
 }
 
 // GetConfigFiles fetch all config files list
@@ -69,13 +101,18 @@ func GetConfigFiles() ([]string, error) {
 // RunCommand executes a shell command and returns its output or an error.
 func RunCommand(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
-	var out bytes.Buffer
 
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	cmd.Stdin = os.Stdin
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
 
 	err := cmd.Run()
-	return out.String(), err
+
+	output := outBuf.String() + errBuf.String()
+
+	return output, err
 }
 
 func getCurrentConfigDir() string {

@@ -6,6 +6,13 @@ import (
 	"github.com/coderj001/GoRevive/helpers"
 )
 
+type Project struct {
+	Name    string   `yaml:"name,omitempty"`
+	Root    string   `yaml:"root,omitempty"`
+	OnStart []string `yaml:"on_project_start,omitempty"`
+	OnEnd   []string `yaml:"on_project_end,omitempty"`
+}
+
 // Session handle a tmux session, each session contain many Window
 type Session struct {
 	Attach  bool     `yaml:"-"`
