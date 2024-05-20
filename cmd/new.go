@@ -17,14 +17,12 @@ var newCmd = &cobra.Command{
 			fmt.Println("Please provide a filename.")
 			return
 		}
-		filename := args[0]
+		project := args[0]
 		interactive, _ := cmd.Flags().GetBool("interactive")
 		fmt.Println(interactive)
-		err := helpers.CreateFile(filename)
+		err := helpers.NewFile(project)
 		if err != nil {
-			fmt.Printf("Error creating file %s: %v\n", filename, err)
-		} else {
-			fmt.Printf("Successfully created file %s\n", filename)
+			fmt.Printf("Error creating file %s: %v\n", project, err)
 		}
 	},
 }

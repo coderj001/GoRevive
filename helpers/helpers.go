@@ -11,21 +11,67 @@ import (
 	"strings"
 )
 
-// CreateFile returns the path to an file after creating the file
-func CreateFile(filename string) error {
-	filePath := filepath.Join(getCurrentConfigDir(),
-		fmt.Sprintf("%s.yaml", filename))
+func NewFile(project string) error {
+	filePath, err := createFile(project)
+	if err != nil {
+		return err
+	}
+	err = insertDefaultConfig(project, filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	if _, err := os.Stat(filePath); os.IsExist(err) {
-		return fmt.Errorf("file %s already exist", filePath)
+func insertDefaultConfig(project, filePath string) error {
+	content := fmt.Sprintf(`project_name: %s
+# project_root: ~/src/project_path
+# on_project_start:
+#   - sudo systemctl start postgresql
+# pre_window:
+#   - workon dummy
+# windows:
+#   - editor: vim
+#   - shells:
+#       layout: main-vertical
+#       panes:
+#         - #
+#         - grunt serve`, project)
+
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write default config to %s: %w", filePath, err)
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s.yaml", filePath))
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+	cmd := exec.Command(editor, filePath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+
 	if err != nil {
-		return fmt.Errorf("failed to create file %w", err)
+		return fmt.Errorf("unable to edit file %s: %w", filePath, err)
+	}
+	return nil
+}
+
+// createFile creates a new file and returns its path
+func createFile(filename string) (string, error) {
+	filePath := filepath.Join(getCurrentConfigDir(), fmt.Sprintf("%s.yaml", filename))
+
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		return "", fmt.Errorf("file %s already exists", filePath)
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file %s: %w", filePath, err)
 	}
 	defer file.Close()
-	return nil
+	return filePath, nil
 }
 
 // DeleteFile deletes the specified configuration file.
