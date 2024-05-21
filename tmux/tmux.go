@@ -1,14 +1,18 @@
 package tmux
 
 import (
+	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/coderj001/GoRevive/helpers"
+	"gopkg.in/yaml.v2"
 )
 
 type Project struct {
-	Name    string   `yaml:"name,omitempty"`
-	Root    string   `yaml:"root,omitempty"`
+	Name    string   `yaml:"project_name,omitempty"`
+	Root    string   `yaml:"project_root,omitempty"`
 	OnStart []string `yaml:"on_project_start,omitempty"`
 	OnEnd   []string `yaml:"on_project_end,omitempty"`
 }
@@ -55,11 +59,18 @@ var (
 
 // CreateSession new tmux sessions.
 func CreateSession(sessionName string) error {
+	if IsInsideTmux() {
+		return fmt.Errorf("already inside tmux session")
+	}
 	_, err := helpers.RunCommand("tmux", "new-session", "-s", sessionName)
 	return err
 }
 
-// func AttachSession(sessionName string) error { }
+// IsInsideTmux Check if we are inside tmux or not
+func IsInsideTmux() bool {
+	// Simply, if the TMUX is set in env, We are in it :)
+	return os.Getenv("TMUX") != ""
+}
 
 // ListSessions lists all the tmux sessions.
 func ListSessions() ([]string, error) {
@@ -69,4 +80,28 @@ func ListSessions() ([]string, error) {
 	}
 	sessionNames := strings.Split(strings.TrimSpace(output), "\n")
 	return sessionNames, nil
+}
+
+func BuildSession() error {
+	filePath := "/home/mrzero/.config/gorevive/config.yaml"
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	var p Project
+	err = yaml.Unmarshal(content, &p)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal YAML content: %w", err)
+	}
+
+	fmt.Printf("----------- x -----------\n")
+	fmt.Printf("--- Project:\n%v\n\n", p)
+	return nil
 }

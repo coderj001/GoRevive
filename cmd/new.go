@@ -18,8 +18,8 @@ var newCmd = &cobra.Command{
 			return
 		}
 		project := args[0]
-		interactive, _ := cmd.Flags().GetBool("interactive")
-		fmt.Println(interactive)
+		// interactive, _ := cmd.Flags().GetBool("interactive")
+		// fmt.Println(interactive)
 		err := helpers.NewFile(project)
 		if err != nil {
 			fmt.Printf("Error creating file %s: %v\n", project, err)
@@ -28,6 +28,6 @@ var newCmd = &cobra.Command{
 }
 
 func init() {
-	newCmd.Flags().BoolP("interactive", "i", false, "Interactive file creation")
+	// newCmd.Flags().BoolP("interactive", "i", false, "Interactive file creation")
 	rootCmd.AddCommand(newCmd)
 }
