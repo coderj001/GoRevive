@@ -17,6 +17,7 @@ type Project struct {
 	Root    string   `yaml:"project_root,omitempty"`
 	OnStart []string `yaml:"on_project_start,omitempty"`
 	OnEnd   []string `yaml:"on_project_end,omitempty"`
+	Windows []Window `yaml:"windows,omitempty"`
 }
 
 // Session handle a tmux session, each session contain many Window
@@ -29,7 +30,7 @@ type Session struct {
 // Window handle tmux window, each window can have multiple pane.
 type Window struct {
 	Name   string `yaml:"name"`
-	Index  int    `yaml:index`
+	Index  int    `yaml:"-"`
 	Height int    `yaml:"height"`
 	Width  int    `yaml:"width"`
 	Panes  []Pane `yaml:"panes"`
@@ -38,11 +39,11 @@ type Window struct {
 
 // Pane handle each pane (single command line) in tmux
 type Pane struct {
-	Commands   []string `yaml:"commands"`
-	index      int      `yaml:"-"`
-	Focus      bool     `yaml:"focus,omitempty"`
-	Root       string   `yaml:"root,omitempty"`
-	identifier string   `yaml:"-"`
+	Commands []string `yaml:"commands"`
+	Index    int      `yaml:"-"`
+	Focus    bool     `yaml:"focus,omitempty"`
+	Height   int      `yaml:"height"`
+	Width    int      `yaml:"width"`
 }
 
 var (
@@ -90,13 +91,18 @@ func (m *Command) Execute(base string, args []string) (string, error) {
 func (m *Command) Clear() {
 	m.Parts = nil
 }
+
 func (s *Session) getSessionNames() []string {
-	out, err := cmd.Execute("tmux", []string{"list-sessions", "-F", "#S"})
+	out, err := cmd.Execute("tmux",
+		[]string{
+			"list-sessions",
+			"-F",
+			"#S",
+		})
 	if err != nil {
 		fmt.Println(err)
 	}
 	sessionNames := strings.Split(strings.TrimSpace(out), "\n")
-	cmd.Clear()
 	return sessionNames
 }
 
@@ -137,7 +143,6 @@ func (s *Session) setCurrentSession() error {
 			return fmt.Errorf("error getting sessions: %v", err)
 		}
 		s.Name = out
-		cmd.Clear()
 	} else {
 		err := s.setSelectedSession()
 		if err != nil {
@@ -164,59 +169,88 @@ func (s *Session) setWindows() error {
 	windows := make([]Window, 0, len(lines))
 	for _, line := range lines {
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) < 4 {
 			continue
 		}
 		index, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return fmt.Errorf("invalid window index: %v", err)
 		}
-		width, err := strconv.Atoi(parts[2])
+		height, err := strconv.Atoi(parts[2])
 		if err != nil {
-			return fmt.Errorf("invalid window index: %v", err)
+			return fmt.Errorf("invalid window height: %v", err)
 		}
-		height, err := strconv.Atoi(parts[3])
+		width, err := strconv.Atoi(parts[3])
 		if err != nil {
-			return fmt.Errorf("invalid window index: %v", err)
+			return fmt.Errorf("invalid window width: %v", err)
 		}
-
 		windows = append(windows,
-			Window{
-				Index:  index,
+			Window{Index: index,
 				Name:   parts[1],
-				Width:  width,
 				Height: height,
-			})
+				Width:  width})
 	}
 	s.Windows = windows
 	return nil
 }
 
-// func (s *Session) setPanes(window *Window) error {
-// 	out, err := cmd.Execute("tmux",
-// 		[]string{
-// 			"list-panes",
-// 			"-t",
-// 			fmt.Sprintf("%s:%d", s.Name, window.Index),
-// 			"-F",
-// 			"#{pane_index}",
-// 		})
-// 	if err != nil {
-// 		return fmt.Errorf("error getting panes: %v", err)
-// 	}
+func (s *Session) setPanes(window *Window) error {
+	out, err := cmd.Execute("tmux",
+		[]string{
+			"list-panes",
+			"-t",
+			fmt.Sprintf("%s:%d", s.Name, window.Index),
+			"-F",
+			"#{pane_index} #{pane_active} #{pane_height} #{pane_width} #{pane_current_command}",
+		})
+	if err != nil {
+		return fmt.Errorf("error getting panes: %v", err)
+	}
 
-// 	lines := strings.Split(out, "\n")
-// 	panes := make([]Pane, 0, len(lines))
-// 	for _, line := range lines {
-// 		index, err := strconv.Atoi(line)
-// 		if err != nil {
-// 			return fmt.Errorf("invalid pane index: %v", err)
-// 		}
-// 		panes = append(panes, Pane{Index: index})
-// 	}
-// 	window.Panes = panes
-// 	return nil
-// }
+	lines := strings.Split(out, "\n")
+	panes := make([]Pane, 0, len(lines))
+	for _, line := range lines {
+		l := strings.Split(line, " ")
+		index, err := strconv.Atoi(l[0])
+		if err != nil {
+			return fmt.Errorf("invalid pane index: %v", err)
+		}
+		height, err := strconv.Atoi(l[2])
+		if err != nil {
+			return fmt.Errorf("invalid window height: %v", err)
+		}
+		width, err := strconv.Atoi(l[3])
+		if err != nil {
+			return fmt.Errorf("invalid window width: %v", err)
+		}
+		active := l[1] == "1" // Convert "1" to true and "0" to false
+		panes = append(panes, Pane{
+			Index:    index,
+			Focus:    active,
+			Height:   height,
+			Width:    width,
+			Commands: []string{l[4]},
+		})
+	}
+	window.Panes = panes
+	return nil
+}
+
+func (s *Session) setProject(pr *Project) error {
+	out, err := cmd.Execute("pwd", nil)
+	if err != nil {
+		return err
+	}
+	pr.Name = s.Name
+	pr.Root = out
+	pr.Windows = s.Windows
+	return nil
+}
+
+// IsInsideTmux Check if we are inside tmux or not
+func IsInsideTmux() bool {
+	return os.Getenv("TMUX") != ""
+}
 
 // CreateSession new tmux sessions.
 func CreateSession(sessionName string) error {
@@ -227,7 +261,9 @@ func CreateSession(sessionName string) error {
 	return err
 }
 
-func FreezeSession(s *Session) error {
+func FreezeSession() error {
+	s := &Session{}
+	project := &Project{}
 	err := s.setCurrentSession()
 	if err != nil {
 		return err
@@ -236,12 +272,31 @@ func FreezeSession(s *Session) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
+	for i := range s.Windows {
+		err := s.setPanes(&s.Windows[i])
+		if err != nil {
+			return err
+		}
+	}
+	s.setProject(project)
 
-// IsInsideTmux Check if we are inside tmux or not
-func IsInsideTmux() bool {
-	return os.Getenv("TMUX") != ""
+	data, err := yaml.Marshal(project)
+	if err != nil {
+		return fmt.Errorf("error marshaling project to YAML: %v", err)
+	}
+
+	file, err := os.Create("project.yaml")
+	if err != nil {
+		return fmt.Errorf("error creating YAML file: %v", err)
+	}
+	defer file.Close()
+
+	_, err = file.Write(data)
+	if err != nil {
+		return fmt.Errorf("error writing to YAML file: %v", err)
+	}
+
+	return nil
 }
 
 // ListSessions lists all the tmux sessions.
@@ -277,4 +332,3 @@ func BuildSession() error {
 	fmt.Printf("--- Project:\n%v\n\n", p)
 	return nil
 }
-
