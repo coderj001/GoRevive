@@ -12,18 +12,6 @@ import (
 )
 
 func NewFile(project string) error {
-	filePath, err := createFile(project)
-	if err != nil {
-		return err
-	}
-	err = insertDefaultConfig(project, filePath)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func insertDefaultConfig(project, filePath string) error {
 	content := fmt.Sprintf(`project_name: %s
 # project_root: ~/src/project_path
 # on_project_start:
@@ -37,29 +25,15 @@ func insertDefaultConfig(project, filePath string) error {
 #       panes:
 #         - #
 #         - grunt serve`, project)
-
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	_, err := CreateFile(project, []byte(content))
 	if err != nil {
-		return fmt.Errorf("failed to write default config to %s: %w", filePath, err)
-	}
-
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	cmd := exec.Command(editor, filePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-
-	if err != nil {
-		return fmt.Errorf("unable to edit file %s: %w", filePath, err)
+		return err
 	}
 	return nil
 }
 
-// createFile creates a new file and returns its path
-func createFile(filename string) (string, error) {
+// CreateFile creates a new file and returns its path
+func CreateFile(filename string, content []byte) (string, error) {
 	filePath := filepath.Join(getCurrentConfigDir(), fmt.Sprintf("%s.yaml", filename))
 
 	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
@@ -71,6 +45,12 @@ func createFile(filename string) (string, error) {
 		return "", fmt.Errorf("failed to create file %s: %w", filePath, err)
 	}
 	defer file.Close()
+
+	_, err = file.Write(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to write to file %s: %w", filePath, err)
+	}
+
 	return filePath, nil
 }
 
@@ -109,7 +89,7 @@ func EditFile(filename string) error {
 	err := cmd.Run()
 
 	if err != nil {
-		return fmt.Errorf("unable to edit file %s: %w", path, err)
+		return fmt.Errorf("unable to edifilepath file %s: %w", path, err)
 	}
 	return nil
 }
@@ -137,6 +117,16 @@ func GetConfigFiles() ([]string, error) {
 		return configFiles, nil
 	}
 	return nil, fmt.Errorf("No Files Found.")
+}
+
+func LoadData(filename string) (*[]byte, error) {
+	filepath := filepath.Join(getCurrentConfigDir(), fmt.Sprintf("%s.yaml", filename))
+	data, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
+	}
+
+	return &data, nil
 }
 
 // RunCommand executes a shell command and returns its output or an error.

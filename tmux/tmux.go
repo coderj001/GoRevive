@@ -2,7 +2,6 @@ package tmux
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -20,14 +19,14 @@ type Project struct {
 	Windows []Window `yaml:"windows,omitempty"`
 }
 
-// Session handle a tmux session, each session contain many Window
+// Session handles a tmux session, each session contains many Window.
 type Session struct {
 	Attach  bool     `yaml:"-"`
 	Name    string   `yaml:"name,omitempty"`
 	Windows []Window `yaml:"windows,omitempty"`
 }
 
-// Window handle tmux window, each window can have multiple pane.
+// Window handles tmux windows, each window can have multiple panes.
 type Window struct {
 	Name   string `yaml:"name"`
 	Index  int    `yaml:"-"`
@@ -37,7 +36,7 @@ type Window struct {
 	Focus  bool   `yaml:"focus,omitempty"`
 }
 
-// Pane handle each pane (single command line) in tmux
+// Pane handles each pane (single command line) in tmux.
 type Pane struct {
 	Commands []string `yaml:"commands"`
 	Index    int      `yaml:"-"`
@@ -57,17 +56,17 @@ var (
 	cmd = &Command{}
 )
 
+// Command encapsulates the execution of a command.
 type Command struct {
 	Parts []string
 }
 
+// Add appends parts to the command.
 func (m *Command) Add(part ...string) {
-	if m.Parts == nil {
-		m.Parts = make([]string, 0)
-	}
 	m.Parts = append(m.Parts, part...)
 }
 
+// Execute runs the command with the given base and arguments.
 func (m *Command) Execute(base string, args []string) (string, error) {
 	args = append(args, m.Parts...)
 	cmd := exec.Command(base, args...)
@@ -78,16 +77,13 @@ func (m *Command) Execute(base string, args []string) (string, error) {
 	cmd.Stderr = &errBuffer
 
 	err := cmd.Run()
-
 	if err != nil {
-		err = fmt.Errorf("failed to execute %s %s : %s \n",
-			base,
-			strings.Join(args, " "),
-			errBuffer.String())
+		return "", fmt.Errorf("failed to execute %s %s: %s", base, strings.Join(args, " "), errBuffer.String())
 	}
-	return strings.TrimSpace(outBuffer.String()), err
+	return strings.TrimSpace(outBuffer.String()), nil
 }
 
+// Clear resets the command parts.
 func (m *Command) Clear() {
 	m.Parts = nil
 }
@@ -159,7 +155,7 @@ func (s *Session) setWindows() error {
 		"-t",
 		s.Name,
 		"-F",
-		"#{window_index} #{window_name} #{window_width} #{window_height}",
+		"#{window_index} #{window_name} #{window_width} #{window_height} #{window_active}",
 	})
 	if err != nil {
 		return fmt.Errorf("error getting windows: %v", err)
@@ -184,11 +180,14 @@ func (s *Session) setWindows() error {
 		if err != nil {
 			return fmt.Errorf("invalid window width: %v", err)
 		}
+		active := parts[4] == "1"
 		windows = append(windows,
 			Window{Index: index,
 				Name:   parts[1],
 				Height: height,
-				Width:  width})
+				Width:  width,
+				Focus:  active,
+			})
 	}
 	s.Windows = windows
 	return nil
@@ -223,7 +222,7 @@ func (s *Session) setPanes(window *Window) error {
 		if err != nil {
 			return fmt.Errorf("invalid window width: %v", err)
 		}
-		active := l[1] == "1" // Convert "1" to true and "0" to false
+		active := l[1] == "1"
 		panes = append(panes, Pane{
 			Index:    index,
 			Focus:    active,
@@ -285,15 +284,9 @@ func FreezeSession() error {
 		return fmt.Errorf("error marshaling project to YAML: %v", err)
 	}
 
-	file, err := os.Create("project.yaml")
+	_, err = helpers.CreateFile(project.Name, data)
 	if err != nil {
 		return fmt.Errorf("error creating YAML file: %v", err)
-	}
-	defer file.Close()
-
-	_, err = file.Write(data)
-	if err != nil {
-		return fmt.Errorf("error writing to YAML file: %v", err)
 	}
 
 	return nil
@@ -309,26 +302,60 @@ func ListSessions() ([]string, error) {
 	return sessionNames, nil
 }
 
-func BuildSession() error {
-	filePath := "/home/mrzero/.config/gorevive/config.yaml"
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", filePath, err)
+func BuildSession(sessionName string) error {
+	if IsInsideTmux() {
+		return fmt.Errorf("already inside tmux session")
 	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
+	data, err := helpers.LoadData(sessionName)
 	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+		return fmt.Errorf("Unable to fetch file: %w", err)
 	}
-
-	var p Project
-	err = yaml.Unmarshal(content, &p)
+	var project Project
+	err = yaml.Unmarshal(*data, &project)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal YAML content: %w", err)
+		return fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
-	fmt.Printf("----------- x -----------\n")
-	fmt.Printf("--- Project:\n%v\n\n", p)
+	if err != nil {
+		return err
+	}
+
+	sessionName = project.Name
+
+	cmd := exec.Command("tmux", "new-session", "-d", "-s", sessionName)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to create tmux session: %w", err)
+	}
+
+	fmt.Printf("Created new tmux session: %s\n", sessionName)
+
+	for _, window := range project.Windows {
+		windowCmd := exec.Command("tmux", "new-window", "-t", sessionName, "-n", window.Name)
+		err = windowCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to create tmux window: %w", err)
+		}
+
+		for _, pane := range window.Panes {
+			for _, command := range pane.Commands {
+				paneCmd := exec.Command("tmux", "split-window", "-t", fmt.Sprintf("%s:%s", sessionName, window.Name), "-h", command)
+				err = paneCmd.Run()
+				if err != nil {
+					return fmt.Errorf("failed to create tmux pane: %w", err)
+				}
+			}
+		}
+	}
+
+	for _, command := range project.OnStart {
+		onStartCmd := exec.Command("tmux", "send-keys", "-t", sessionName, command, "C-m")
+		err = onStartCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to execute on_start command: %w", err)
+		}
+	}
+
+	fmt.Printf("Configured tmux session: %s\n", sessionName)
 	return nil
 }

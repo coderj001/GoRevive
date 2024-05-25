@@ -18,7 +18,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 		project := args[0]
-		err := tmux.CreateSession(project)
+		err := tmux.BuildSession(project)
 		if err != nil {
 			fmt.Println(err)
 		}
