@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/coderj001/GoRevive/helpers"
+	"github.com/coderj001/GoRevive/internal/helpers"
 	"github.com/spf13/cobra"
 )
 

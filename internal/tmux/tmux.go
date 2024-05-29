@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coderj001/GoRevive/helpers"
+	"github.com/coderj001/GoRevive/internal/helpers"
 	"gopkg.in/yaml.v2"
 )
 

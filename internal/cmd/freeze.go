@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/coderj001/GoRevive/tmux"
+	"github.com/coderj001/GoRevive/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
