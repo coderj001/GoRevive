@@ -45,48 +45,7 @@ type Pane struct {
 	Width    int      `yaml:"width"`
 }
 
-var (
-	// IgnoredCmd is list of commands ignored by save session
-	IgnoredCmd []string
-	// DefaultCmd is a command used when the command is ignored
-	DefaultCmd string
-	// Copy of env whitout tmux related env
-	tmuxENV []string
-
-	cmd = &Command{}
-)
-
-// Command encapsulates the execution of a command.
-type Command struct {
-	Parts []string
-}
-
-// Add appends parts to the command.
-func (m *Command) Add(part ...string) {
-	m.Parts = append(m.Parts, part...)
-}
-
-// Execute runs the command with the given base and arguments.
-func (m *Command) Execute(base string, args []string) (string, error) {
-	args = append(args, m.Parts...)
-	cmd := exec.Command(base, args...)
-	cmd.Env = tmuxENV
-
-	var outBuffer, errBuffer strings.Builder
-	cmd.Stdout = &outBuffer
-	cmd.Stderr = &errBuffer
-
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("failed to execute %s %s: %s", base, strings.Join(args, " "), errBuffer.String())
-	}
-	return strings.TrimSpace(outBuffer.String()), nil
-}
-
-// Clear resets the command parts.
-func (m *Command) Clear() {
-	m.Parts = nil
-}
+var cmd = &helpers.Command{}
 
 func (s *Session) getSessionNames() []string {
 	out, err := cmd.Execute("tmux",
@@ -236,7 +195,14 @@ func (s *Session) setPanes(window *Window) error {
 }
 
 func (s *Session) setProject(pr *Project) error {
-	out, err := cmd.Execute("pwd", nil)
+	out, err := cmd.Execute("tmux", []string{
+		"display-message",
+		"-p",
+		"-F",
+		"#pane_current_path",
+		"-t",
+		s.Name,
+	})
 	if err != nil {
 		return err
 	}
@@ -256,7 +222,7 @@ func CreateSession(sessionName string) error {
 	if IsInsideTmux() {
 		return fmt.Errorf("already inside tmux session")
 	}
-	_, err := helpers.RunCommand("tmux", "new-session", "-s", sessionName)
+	_, err := cmd.Execute("tmux", []string{"new-session", "-s", sessionName})
 	return err
 }
 
@@ -284,7 +250,7 @@ func FreezeSession() error {
 		return fmt.Errorf("error marshaling project to YAML: %v", err)
 	}
 
-	_, err = helpers.CreateFile(project.Name, data)
+	err = helpers.CreateFile(project.Name, data)
 	if err != nil {
 		return fmt.Errorf("error creating YAML file: %v", err)
 	}
@@ -294,7 +260,7 @@ func FreezeSession() error {
 
 // ListSessions lists all the tmux sessions.
 func ListSessions() ([]string, error) {
-	output, err := helpers.RunCommand("tmux", "list-sessions", "-F", "#S")
+	output, err := cmd.Execute("tmux", []string{"list-sessions", "-F", "#S"})
 	if err != nil {
 		return nil, err
 	}
@@ -306,18 +272,16 @@ func BuildSession(sessionName string) error {
 	if IsInsideTmux() {
 		return fmt.Errorf("already inside tmux session")
 	}
+
 	data, err := helpers.LoadData(sessionName)
 	if err != nil {
 		return fmt.Errorf("Unable to fetch file: %w", err)
 	}
+
 	var project Project
 	err = yaml.Unmarshal(*data, &project)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	if err != nil {
-		return err
 	}
 
 	sessionName = project.Name

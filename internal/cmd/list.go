@@ -14,15 +14,11 @@ var listCmd = &cobra.Command{
 	Long:  `List all projects configs`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfgs, err := helpers.GetConfigFiles()
-		showNumbers, _ := cmd.Flags().GetInt("number")
 
 		if err != nil {
 			fmt.Println(err)
 		}
-		for idx, cfg := range cfgs {
-			if idx >= showNumbers {
-				return
-			}
+		for _, cfg := range cfgs {
 			fmt.Println(cfg)
 		}
 
@@ -30,6 +26,5 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().IntP("number", "n", 10, "Number projects the list")
 	rootCmd.AddCommand(listCmd)
 }
