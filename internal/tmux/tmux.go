@@ -3,7 +3,6 @@ package tmux
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -168,26 +167,26 @@ func (s *Session) setPanes(window *Window) error {
 	lines := strings.Split(out, "\n")
 	panes := make([]Pane, 0, len(lines))
 	for _, line := range lines {
-		l := strings.Split(line, " ")
-		index, err := strconv.Atoi(l[0])
+		parts := strings.Split(line, " ")
+		index, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return fmt.Errorf("invalid pane index: %v", err)
 		}
-		height, err := strconv.Atoi(l[2])
+		height, err := strconv.Atoi(parts[2])
 		if err != nil {
 			return fmt.Errorf("invalid window height: %v", err)
 		}
-		width, err := strconv.Atoi(l[3])
+		width, err := strconv.Atoi(parts[3])
 		if err != nil {
 			return fmt.Errorf("invalid window width: %v", err)
 		}
-		active := l[1] == "1"
+		active := parts[1] == "1"
 		panes = append(panes, Pane{
 			Index:    index,
 			Focus:    active,
 			Height:   height,
 			Width:    width,
-			Commands: []string{l[4]},
+			Commands: []string{parts[4]},
 		})
 	}
 	window.Panes = panes
@@ -199,7 +198,7 @@ func (s *Session) setProject(pr *Project) error {
 		"display-message",
 		"-p",
 		"-F",
-		"#pane_current_path",
+		"#{pane_current_path}",
 		"-t",
 		s.Name,
 	})

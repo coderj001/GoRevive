@@ -19,7 +19,7 @@ func CreateFile(filename string, content []byte) error {
 		fmt.Sprintf("%s.yaml", filename),
 	)
 
-	if checkIfPathExists(filePath) {
+	if !checkIfPathExists(filePath) {
 		return fmt.Errorf("file %s already exists", filePath)
 	}
 
@@ -27,12 +27,13 @@ func CreateFile(filename string, content []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filePath, err)
 	}
-	defer file.Close()
 
 	_, err = file.Write(content)
 	if err != nil {
 		return fmt.Errorf("failed to write to file %s: %w", filePath, err)
 	}
+
+	defer file.Close()
 
 	return nil
 }
