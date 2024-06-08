@@ -32,11 +32,14 @@ func NewFile(project string) error {
 	return nil
 }
 
-func LoadData(filename string) (*[]byte, error) {
-	filepath := filepath.Join(config.ConfigDir, fmt.Sprintf("%s.yaml", filename))
+func LoadData(fileName string) (*[]byte, error) {
+	filepath := filepath.Join(
+		config.ConfigDir,
+		fmt.Sprintf("%s.yaml", fileName),
+	)
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
+		return nil, fmt.Errorf("failed to read file %s: %w", fileName, err)
 	}
 
 	return &data, nil
